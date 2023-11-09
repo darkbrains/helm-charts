@@ -1,0 +1,246 @@
+##  Global
+
+global:
+  ##  global.clusterId Your Cluster ID (Requried)
+  clusterId: ""
+
+  ##  global.endpoint CloudChipr endpoint (Required)
+  endpoint: "metrics.cloudchipr.dev"
+
+
+  ##  global.bearerToken Your CloudChipr bearer token (Required)
+  bearerToken: ""
+
+  ##  global.nameOverride Chart Name override
+  nameOverride: ""
+
+  ##  global.namespaceOverride Chart NameSpace override
+  namespaceOverride: ""
+
+
+##  OpenCost Chart
+
+openCost:
+  ##  openCost.enabled Enable/Disable sub Chart OpenCost
+  enabled: true
+
+opencost:
+  opencost:
+    ##  opencost.opencost.tolerations Toleration labels for pod assignment
+    tolerations: []
+
+    ##  opencost.opencost.nodeSelector Node labels for pod assignment
+    nodeSelector: {}
+
+    ##  opencost.opencost.affinity Affinity settings for pod assignment
+    affinity: {}
+
+    ##  opencost.opencost.topologySpreadConstraints Assign custom TopologySpreadConstraints rules
+    topologySpreadConstraints: []
+    
+    exporter:
+      ##  opencost.opencost.exporter.cloudProviderApiKey CloudProvider API key if example You are deploying Chart on GKE
+      cloudProviderApiKey: ""
+
+      ##  opencost.opencost.exporter.resources Resource requests/limits for OpenCost exporter
+      resources: {}
+        # # -- CPU/Memory resource requests
+        # requests:
+        #   cpu: '10m'
+        #   memory: '55Mi'
+        # # -- CPU/Memory resource limits
+        # limits:
+        #   cpu: '100m'
+        #   memory: '256Mi'
+
+      ##  opencost.opencost.exporter.persistence.enabled Persistent volume claim for storing the data. eg: csv file
+      persistence:
+        enabled: false
+
+      aws:
+        ##  opencost.opencost.exporter.aws.secret_access_key AWS secret access key (If needed)
+        secret_access_key: ""
+        ##  opencost.opencost.exporter.aws.access_key_id AWS access key id (If needed)
+        access_key_id: ""
+
+    ##  opencost.opencost.prometheus
+    prometheus:
+      external:
+        ##  opencost.opencost.prometheus.external.enabled Enable/Disable External Prometheus Server endpoint (We recomended to do not change it)
+        enabled: false
+
+      internal:
+         ##  opencost.opencost.prometheus.internal.enabled Enable/Disable Internal Prometheus endpoint
+        enabled: true
+
+        ##  opencost.opencost.prometheus.internal.serviceName Service name of in-cluster Prometheus (We recomended to do not change it)
+        serviceName: "{{ .Release.Name }}-prometheus-server"
+
+        ##  opencost.opencost.prometheus.internal.namespaceName Namespace of in-cluster Prometheus (We recomended to do not change it)
+        namespaceName: "{{ .Release.Namespace }}"
+
+        ##  opencost.opencost.prometheus.internal.port Service port of in-cluster Prometheus (We recomended to do not change it)
+        port: 80
+
+    ##  opencost.opencost.ui
+    ui:
+      ##  opencost.opencost.ui.enabled Enable/Disable OpenCost UI (We are recomended to disable UI)
+      enabled: false
+
+
+##  Prometheus Chart
+
+prometheusServer:
+  ##  prometheusServer.enabled Enable/Disable sub Chart
+  enabled: true
+
+prometheus:
+  configmapReload:
+    ##  prometheus.configmapReload.prometheus.enabled Enable/Disable Prometheus ConfigMap reloader
+    prometheus:
+      enabled: true
+
+  server:
+    ##  prometheus.server.persistentVolume.enabled  Enable/Disable Prometheus server persistent volume
+    persistentVolume:
+      enabled: false
+
+    ##  prometheus.server.extraFlags Prometheus server extra command line flags
+    extraFlags:
+      - web.enable-lifecycle
+      - web.enable-remote-write-receiver
+
+    ##  prometheus.server.remoteWrite  Prometheus server remoteWrite configuration (We recomended to do not change it)
+    remoteWrite:
+      ##  prometheus.server.remoteWrite[0].url
+      - url: '{{ include "RemoteWrite" . }}'
+
+        ##  prometheus.server.remoteWrite[0].authorization.credentials_file
+        authorization:
+          credentials_file: /etc/secrets/token
+        
+        ##  prometheus.server.remoteWrite[0].queue_config.retry_on_http_429
+        queue_config:
+          retry_on_http_429: true       
+
+    ##  prometheus.server.extraSecretMounts Prometheus server extra secret mount (We recomended to do not change it)
+    extraSecretMounts: 
+      ##  prometheus.server.extraSecretMounts[0].name
+      - name: bearertoken
+
+        ##  prometheus.server.extraSecretMounts[0].mountPath
+        mountPath: /etc/secrets
+
+        ##  prometheus.server.extraSecretMounts[0].secretName
+        secretName: bearertoken
+
+        ##  prometheus.server.extraSecretMounts[0].readOnly
+        readOnly: true
+
+    ##  prometheus.server.tolerations  Node tolerations for server scheduling to nodes with taints
+    tolerations: []
+      # - key: "key"
+      #   operator: "Equal|Exists"
+      #   value: "value"
+      #   effect: "NoSchedule|PreferNoSchedule|NoExecute(1.6 only)"
+
+    ##  prometheus.server.nodeSelector Node Selector
+    nodeSelector: {}
+
+    ##  prometheus.server.affinity Pod affinity
+    affinity: {}
+
+    ##  prometheus.server.topologySpreadConstraints Pod topology spread constraints
+    topologySpreadConstraints: []
+
+
+    ##  prometheus.server.resources Resource requests/limits for Prometheus server
+    resources: {}
+      # limits:
+      #   cpu: 500m
+      #   memory: 512Mi
+      # requests:
+      #   cpu: 500m
+      #   memory: 512Mi
+
+    ##  prometheus.server.retention Prometheus data retention period
+    retention: "1d"
+
+  ##  prometheus.serverFiles Prometheus server ConfigMap entries (We recomended to do not change it)
+  serverFiles:
+    prometheus.yml:
+      ##  prometheus.serverFiles.prometheus-yml.rule_files
+      rule_files:
+        - /etc/config/recording_rules.yml
+        - /etc/config/alerting_rules.yml
+        - /etc/config/rules
+        - /etc/config/alerts
+      scrape_configs:
+      - job_name: 'prometheus-pushgateway'
+        honor_labels: true
+        kubernetes_sd_configs:
+          - role: service
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_probe]
+            action: keep
+            regex: pushgateway     
+ 
+  ##  prometheus.extraScrapeConfigs (We recomended to do not change it)
+  extraScrapeConfigs: |
+    - job_name: c8r-agent-prometheus
+      static_configs:
+        - targets:
+          - localhost:9090
+          labels: 
+            cluster_id: {{ include "clusterId" . }}
+    - job_name: c8r-agent-kubernetes-opencost
+      kubernetes_sd_configs:
+        - role: pod
+      relabel_configs:
+        - action: keep
+          regex: opencost-*
+          source_labels:
+            - __meta_kubernetes_pod_label_app_kubernetes_io_name
+        - source_labels: []
+          regex: .*
+          target_label: cluster_id
+          replacement: {{ include "clusterId" . }} 
+
+
+  ##  prometheus.alertmanager
+  alertmanager:
+    ##  ##  prometheus.alertmanager.enabled Enable/Disable Alertmanager sub Chart
+    enabled: false
+
+  ##  prometheus.kube-state-metrics.enabled Enable kube-state-metrics sub Chart (Requried)
+  kube-state-metrics:
+    enabled: true
+
+    ##  prometheus.kube-state-metrics.nodeSelector Node labels for pod assignment
+    nodeSelector: {}
+
+    ##  prometheus.kube-state-metrics.affinity Affinity settings for pod assignment
+    affinity: {}
+
+    ##  prometheus.kube-state-metrics.tolerations Tolerations for pod assignment
+    tolerations: []
+
+    ##  prometheus.kube-state-metrics.topologySpreadConstraints Topology spread constraints for pod assignment
+    topologySpreadConstraints: []    
+
+  ##  prometheus.prometheus-node-exporter.enabled Enable/Disable node-exporter sub Chart (Requried)
+  prometheus-node-exporter:
+    enabled: false
+
+    ##  prometheus.prometheus-node-exporter.service (We recomended to do not change it)
+    service:
+      ##  prometheus.prometheus-node-exporter.service.enabled
+      enabled: true
+      type: ClusterIP
+      port: 49191
+      targetPort: 49191
+  
+  ##  prometheus.prometheus-pushgateway (We recomended to do not change it)
+  prometheus-pushgateway:
+    ##  prometheus.prometheus-pushgateway.enabled  Enable/Disable prometheus-pushgateway sub Chart
+    enabled: false
