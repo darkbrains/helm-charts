@@ -1,0 +1,90 @@
+# Default values for blocking-rules.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Number of replicas for the deployment
+replicaCount: 1
+
+# Configuration for the container image
+image:
+  repository: docker.io/darkbrains/blocking-rules  # Image repository
+  pullPolicy: IfNotPresent  # Image pull policy
+  tag: ""  # Image tag (default is chart's appVersion)
+
+# Secrets for pulling images from private repositories
+imagePullSecrets: []
+# Overrides for default chart name
+nameOverride: ""
+# Overrides for full chart name
+fullnameOverride: ""
+
+# Annotations to be added to pods
+podAnnotations: {}
+
+# Security context for the pod
+podSecurityContext: {}
+  # fsGroup: 2000
+
+# Security settings for containers in the pod
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+# Additional configuration (custom)
+additionalconf:
+  enabled: false  # Enable/disable additional configuration
+  name: ""  # Name of the configuration
+  labels: {}  # Labels for the configuration
+  annotations: {}  # Annotations for the configuration
+  config: |-  # Content of the configuration
+
+# Service configuration
+service:
+  type: ClusterIP  # Type of service
+  port: 80  # Service port
+
+# Ingress configuration
+ingress:
+  enabled: true  # Enable/disable ingress
+  className: ""  # Ingress class name
+  annotations: {}  # Annotations for ingress
+    # Example annotations:
+    # nginx.ingress.kubernetes.io/ssl-passthrough: "false"  
+    # nginx.ingress.kubernetes.io/from-to-www-redirect: "false"
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"  
+  hosts:  # List of hosts and paths
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []  # TLS configuration for ingress
+  # Example TLS configuration:
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+# Resource requests and limits
+resources: {}
+  # Recommended to not set default resources, but can be specified here
+
+# Autoscaling configuration
+autoscaling:
+  enabled: false  # Enable/disable autoscaling
+  minReplicas: 1  # Minimum number of replicas
+  maxReplicas: 100  # Maximum number of replicas
+  targetCPUUtilizationPercentage: 80  # CPU utilization target for scaling
+  # targetMemoryUtilizationPercentage: 80  # Memory utilization target (optional)
+
+# Node selector for pod scheduling
+nodeSelector: {}
+
+# Tolerations for pod scheduling
+tolerations: []
+
+# Affinity rules for pod scheduling
+affinity: {}
